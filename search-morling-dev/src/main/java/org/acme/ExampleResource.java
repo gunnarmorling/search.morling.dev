@@ -1,12 +1,10 @@
 package org.acme;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
-import javax.enterprise.event.Observes;
+import javax.inject.Inject;
 import javax.json.Json;
 import javax.json.JsonArrayBuilder;
 import javax.json.JsonObjectBuilder;
@@ -32,24 +30,14 @@ import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.store.Directory;
-import org.apache.lucene.store.SimpleFSDirectory;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
 
-import io.quarkus.runtime.StartupEvent;
-
-@Path("/hello")
+@Path("/search")
 public class ExampleResource {
 
-    @ConfigProperty(name = "indexFile", defaultValue = "/Users/gunnar/Development/quarkus/quarkus-lucene/searchindex.json")
-    public String indexFile;
-
-    @ConfigProperty(name = "indexDir", defaultValue = "/Users/gunnar/Development/quarkus/quarkus-lucene/index")
-    public String indexDir;
-
+    @Inject
     private Directory dir;
 
     private IndexSearcher searcher;
-
 
     @GET
     @Produces(MediaType.APPLICATION_JSON)
@@ -110,38 +98,12 @@ public class ExampleResource {
         }
     }
 
-    public void onStartup(@Observes StartupEvent se) {
-        java.nio.file.Path path = Paths.get(indexDir);
-
-        if (!Files.exists(path) || !path.iterator().hasNext()) {
-            return;
-        }
-
-        getIndexDir();
-    }
-
-    private Directory getIndexDir() {
-        if (dir != null) {
-            return dir;
-        }
-
-        try {
-            dir = new SimpleFSDirectory(Paths.get(indexDir));
-        }
-        catch (IOException e) {
-            throw new RuntimeException("Couldn't open index directory", e);
-        }
-
-        return dir;
-    }
-
     private IndexSearcher getSearcher() {
         if (searcher != null) {
             return searcher;
         }
 
         try {
-            Directory dir = getIndexDir();
             IndexReader indexReader = DirectoryReader.open(dir);
             searcher = new IndexSearcher(indexReader);
 
