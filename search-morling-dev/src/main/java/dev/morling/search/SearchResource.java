@@ -1,9 +1,15 @@
-package org.acme;
+/*
+ * Copyright Gunnar Morling
+ *
+ * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+ */
+package dev.morling.search;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import javax.enterprise.event.Observes;
 import javax.inject.Inject;
 import javax.json.Json;
 import javax.json.JsonArrayBuilder;
@@ -31,13 +37,25 @@ import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.store.Directory;
 
+import io.quarkus.runtime.StartupEvent;
+
 @Path("/search")
-public class ExampleResource {
+public class SearchResource {
 
     @Inject
-    private Directory dir;
+    Directory dir;
 
     private IndexSearcher searcher;
+
+    public void setupSearcher(@Observes StartupEvent se) {
+        try {
+            IndexReader indexReader = DirectoryReader.open(dir);
+            searcher = new IndexSearcher(indexReader);
+        }
+        catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
     @GET
     @Produces(MediaType.APPLICATION_JSON)
@@ -47,17 +65,6 @@ public class ExampleResource {
             return Response.status(Status.BAD_REQUEST)
                     .entity(Json.createObjectBuilder()
                             .add("message", "A query must be specified using the 'q' query parameter")
-                            .build()
-                            )
-                    .build();
-        }
-
-        IndexSearcher searcher = getSearcher();
-
-        if (searcher == null) {
-            return Response.status(Status.INTERNAL_SERVER_ERROR)
-                    .entity(Json.createObjectBuilder()
-                            .add("message", "No index found")
                             .build()
                             )
                     .build();
@@ -95,22 +102,6 @@ public class ExampleResource {
         }
         catch (IOException | ParseException e) {
             throw new RuntimeException("Couldn't execute query", e);
-        }
-    }
-
-    private IndexSearcher getSearcher() {
-        if (searcher != null) {
-            return searcher;
-        }
-
-        try {
-            IndexReader indexReader = DirectoryReader.open(dir);
-            searcher = new IndexSearcher(indexReader);
-
-            return searcher;
-        }
-        catch (IOException e) {
-            return null;
         }
     }
 }

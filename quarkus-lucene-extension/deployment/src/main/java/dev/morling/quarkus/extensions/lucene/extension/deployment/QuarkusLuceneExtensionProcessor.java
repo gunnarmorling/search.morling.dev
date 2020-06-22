@@ -1,9 +1,15 @@
+/*
+ * Copyright Gunnar Morling
+ *
+ * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package dev.morling.quarkus.extensions.lucene.extension.deployment;
-
-import static io.quarkus.deployment.annotations.ExecutionTime.STATIC_INIT;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 import javax.json.Json;
 import javax.json.JsonObject;
@@ -18,18 +24,15 @@ import org.apache.lucene.document.TextField;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.IndexWriterConfig.OpenMode;
-import org.apache.lucene.store.RAMDirectory;
+import org.apache.lucene.store.Directory;
+import org.apache.lucene.store.SimpleFSDirectory;
 
 import dev.morling.quarkus.extensions.lucene.extension.DirectoryProvider;
-import dev.morling.quarkus.extensions.lucene.extension.RamDirectoryRecorder;
 import io.quarkus.arc.deployment.AdditionalBeanBuildItem;
-import io.quarkus.arc.deployment.BeanContainerListenerBuildItem;
 import io.quarkus.deployment.annotations.BuildProducer;
 import io.quarkus.deployment.annotations.BuildStep;
-import io.quarkus.deployment.annotations.Record;
 import io.quarkus.deployment.builditem.FeatureBuildItem;
-import io.quarkus.deployment.builditem.ShutdownContextBuildItem;
-import io.quarkus.deployment.recording.RecorderContext;
+import io.quarkus.deployment.builditem.GeneratedFileSystemResourceBuildItem;
 
 class QuarkusLuceneExtensionProcessor {
 
@@ -43,24 +46,35 @@ class QuarkusLuceneExtensionProcessor {
     }
 
     @BuildStep
-    @Record(STATIC_INIT)
-    public void build(RamDirectoryRecorder recorder, RecorderContext recorderContext,
-            BuildProducer<BeanContainerListenerBuildItem> beanContainerListener,
-            ShutdownContextBuildItem shutdownContext) throws Exception {
+    public void createIndex(BuildProducer<GeneratedFileSystemResourceBuildItem> gen) throws Exception {
 
-        RAMDirectory directory = getRamDirectory();
-System.out.println("### DIR" + directory);
-        beanContainerListener.produce(new BeanContainerListenerBuildItem(
-                recorder.initializeDirectory(directory, shutdownContext)));
+
+        Path indexLocation = Files.createTempDirectory("quarkus-build")
+                .resolve("index")
+                .toAbsolutePath();
+
+        createIndexDirectory(indexLocation);
+        Path indexDir = Paths.get("index");
+
+        Files.walk(indexLocation)
+            .filter(Files::isRegularFile)
+            .forEach(file -> {
+                try {
+                    String path = indexDir.resolve(indexLocation.relativize(file)).toString();
+                    gen.produce(new GeneratedFileSystemResourceBuildItem(path, Files.readAllBytes(file)));
+                }
+                catch (IOException e) {
+                    throw new RuntimeException("Couldn't generate resource", e);
+                }
+            });
     }
 
-    private RAMDirectory getRamDirectory() {
-      RAMDirectory dir = new RAMDirectory();
+    private Directory createIndexDirectory(Path root) throws Exception {
+        Directory dir = new SimpleFSDirectory(root);
 
       Analyzer analyzer = new StandardAnalyzer();
       IndexWriterConfig iwc = new IndexWriterConfig(analyzer);
 
-      //Always overwrite the directory
       iwc.setOpenMode(OpenMode.CREATE);
 
       try(InputStream fis = getSearchIndexFile();
