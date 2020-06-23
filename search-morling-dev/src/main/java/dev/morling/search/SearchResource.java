@@ -6,8 +6,6 @@
 package dev.morling.search;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 
 import javax.enterprise.event.Observes;
 import javax.inject.Inject;
@@ -24,8 +22,8 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 
 import org.apache.lucene.analysis.Analyzer;
+import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
-import org.apache.lucene.document.Document;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.queryparser.classic.MultiFieldQueryParser;
@@ -33,8 +31,14 @@ import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.queryparser.classic.QueryParser.Operator;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
-import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.TopDocs;
+import org.apache.lucene.search.highlight.Highlighter;
+import org.apache.lucene.search.highlight.InvalidTokenOffsetsException;
+import org.apache.lucene.search.highlight.QueryScorer;
+import org.apache.lucene.search.highlight.SimpleHTMLFormatter;
+import org.apache.lucene.search.highlight.TextFragment;
+import org.apache.lucene.search.highlight.TokenSources;
+import org.apache.lucene.search.vectorhighlight.FastVectorHighlighter;
 import org.apache.lucene.store.Directory;
 
 import io.quarkus.runtime.StartupEvent;
@@ -47,9 +51,11 @@ public class SearchResource {
 
     private IndexSearcher searcher;
 
+    private IndexReader indexReader;
+
     public void setupSearcher(@Observes StartupEvent se) {
         try {
-            IndexReader indexReader = DirectoryReader.open(dir);
+            indexReader = DirectoryReader.open(dir);
             searcher = new IndexSearcher(indexReader);
         }
         catch (IOException e) {
@@ -77,23 +83,50 @@ public class SearchResource {
                     new String[]{"title", "content"},
                     analyzer);
             parser.setDefaultOperator(Operator.AND);
-
             Query query = parser.parse(queryString);
 
             TopDocs topDocs = searcher.search(query, 10);
-            List<Document> documents = new ArrayList<>();
-            for (ScoreDoc scoreDoc : topDocs.scoreDocs) {
-                documents.add(searcher.doc(scoreDoc.doc));
-            }
 
             JsonObjectBuilder result = Json.createObjectBuilder()
                     .add("message", "ok");
 
             JsonArrayBuilder results = Json.createArrayBuilder();
-            for (Document document : documents) {
+
+            FastVectorHighlighter fvh = new FastVectorHighlighter();
+            SimpleHTMLFormatter htmlFormatter = new SimpleHTMLFormatter();
+            Highlighter highlighter = new Highlighter(htmlFormatter, new QueryScorer(query));
+
+            for (int i = 0; i < topDocs.scoreDocs.length; i++) {
+                String title = getBestFragmentFromFvh(query, "title", topDocs.scoreDocs[i].doc, fvh);
+                if (title == null) {
+                    title = getBestFragmentFromSimpleHighlighter("title", topDocs.scoreDocs[i].doc, highlighter, analyzer);
+                }
+                if (title == null) {
+                    title = searcher.doc(topDocs.scoreDocs[i].doc).get("title");
+                }
+
+                String fragment = getBestFragmentFromFvh(query, "content", topDocs.scoreDocs[i].doc, fvh);
+                if (fragment == null) {
+                    fragment = getBestFragmentFromSimpleHighlighter("content", topDocs.scoreDocs[i].doc, highlighter, analyzer);
+                }
+                if (fragment != null) {
+                    fragment = "..." + fragment;
+                    if (!fragment.endsWith(".")) {
+                        fragment = fragment + "...";
+                    }
+                    fragment = fragment.replaceAll(":\n\\s+", ". ");
+                    fragment = fragment.replaceAll(".\n\\s+", ". ");
+                }
+                else {
+                    fragment = "";
+                }
+
                 results.add(Json.createObjectBuilder()
-                        .add("uri", document.get("uri"))
-                        .add("title", document.get("title")));
+                        .add("publicationdate", searcher.doc(topDocs.scoreDocs[i].doc).get("publicationdate"))
+                        .add("uri", searcher.doc(topDocs.scoreDocs[i].doc).get("uri"))
+                        .add("title", title)
+                        .add("fragment", fragment)
+                );
             }
 
             result.add("results", results);
@@ -102,6 +135,30 @@ public class SearchResource {
         }
         catch (IOException | ParseException e) {
             throw new RuntimeException("Couldn't execute query", e);
+        }
+    }
+
+    private String getBestFragmentFromSimpleHighlighter(String fieldName, int docId, Highlighter highlighter, Analyzer analyzer) {
+        try {
+            TokenStream tokenStream = TokenSources.getAnyTokenStream(searcher.getIndexReader(), docId, fieldName, analyzer);
+            TextFragment[] frag = highlighter.getBestTextFragments(tokenStream, searcher.doc(docId).get(fieldName), false, 1);
+            if (frag.length == 1) {
+                return frag[0].toString();
+            }
+        }
+        catch (IOException | InvalidTokenOffsetsException e) {
+            throw new RuntimeException("Couldn't highlight search result", e);
+        }
+
+        return null;
+    }
+
+    private String getBestFragmentFromFvh(Query query, String fieldName, int docId, FastVectorHighlighter fvh) {
+        try {
+            return fvh.getBestFragment(fvh.getFieldQuery(query), indexReader, docId, fieldName, 300);
+        }
+        catch (IOException e) {
+            throw new RuntimeException("Couldn't highlight search result", e);
         }
     }
 }

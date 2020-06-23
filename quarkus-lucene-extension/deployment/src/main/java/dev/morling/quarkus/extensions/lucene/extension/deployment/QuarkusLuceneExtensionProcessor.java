@@ -10,17 +10,23 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.stream.Collectors;
 
 import javax.json.Json;
 import javax.json.JsonObject;
 import javax.json.JsonReader;
+import javax.json.JsonString;
 import javax.json.JsonValue;
+import javax.json.JsonValue.ValueType;
 
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
+import org.apache.lucene.document.FieldType;
 import org.apache.lucene.document.TextField;
+import org.apache.lucene.index.IndexOptions;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.IndexWriterConfig.OpenMode;
@@ -47,8 +53,6 @@ class QuarkusLuceneExtensionProcessor {
 
     @BuildStep
     public void createIndex(BuildProducer<GeneratedFileSystemResourceBuildItem> gen) throws Exception {
-
-
         Path indexLocation = Files.createTempDirectory("quarkus-build")
                 .resolve("index")
                 .toAbsolutePath();
@@ -85,9 +89,23 @@ class QuarkusLuceneExtensionProcessor {
               Document doc = new Document();
               JsonObject jsonObject = object.asJsonObject();
 
-              doc.add(new TextField("content", jsonObject.getString("content"), Field.Store.YES));
-              doc.add(new TextField("uri", jsonObject.getString("uri"), Field.Store.YES));
-              doc.add(new TextField("title", jsonObject.getString("title"), Field.Store.YES));
+              FieldType ft = new FieldType();
+              ft.setStored(true);
+              ft.setStoreTermVectors(true);
+              ft.setStoreTermVectorOffsets(true);
+              ft.setStoreTermVectorPositions(true);
+              ft.setIndexOptions(IndexOptions.DOCS_AND_FREQS_AND_POSITIONS_AND_OFFSETS);
+
+              doc.add(new Field("content", jsonObject.getString("content"), ft));
+              doc.add(new Field("title", jsonObject.getString("title"), ft));
+              doc.add(new Field("uri", jsonObject.getString("uri"), ft));
+              String tags = getTags(jsonObject);
+
+              if (tags != null) {
+                  doc.add(new Field("tags", tags, ft));
+              }
+
+              doc.add(new TextField("publicationdate", jsonObject.getString("publicationdate"), Field.Store.YES));
 
               indexWriter.addDocument(doc);
           }
@@ -99,6 +117,25 @@ class QuarkusLuceneExtensionProcessor {
       catch (IOException e) {
           throw new RuntimeException("Couldn't index JSON file", e);
       }
+    }
+
+    private String getTags(JsonObject jsonObject) {
+        JsonValue tags = jsonObject.get("tags");
+
+        if (tags != null) {
+            if (tags.getValueType() == ValueType.ARRAY) {
+                JsonString[] tagsAsString = tags.asJsonArray().toArray(new JsonString[0]);
+
+                return Arrays.stream(tagsAsString)
+                    .map(JsonString::getString)
+                    .collect(Collectors.joining(", "));
+            }
+            else if (tags.getValueType() == ValueType.STRING) {
+                return tags.toString();
+            }
+        }
+
+        return null;
     }
 
     @BuildStep
