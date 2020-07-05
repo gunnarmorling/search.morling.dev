@@ -66,7 +66,11 @@ public class SearchResource {
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
-    public Response hello(@QueryParam("q") String queryString) {
+    public Response search(@QueryParam("q") String queryString) {
+        return query(queryString);
+    }
+
+    private Response query(String queryString) {
         if (queryString == null || queryString.isEmpty()) {
             return Response.status(Status.BAD_REQUEST)
                     .entity(Json.createObjectBuilder()

@@ -22,7 +22,7 @@ FROM gcr.io/distroless/base-debian10
 WORKDIR /work/
 COPY --from=build-env /lib/x86_64-linux-gnu/libz.so.1 /lib/x86_64-linux-gnu/libz.so.1
 COPY --chown=1001:root target/*-runner /work/application
-COPY --chown=1001:root index/* /work/index/
+COPY --chown=1001:root target/index/* /work/index/
 
 # EXPOSE 8080
 USER 1001
