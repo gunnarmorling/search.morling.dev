@@ -40,11 +40,15 @@ import org.apache.lucene.search.highlight.TextFragment;
 import org.apache.lucene.search.highlight.TokenSources;
 import org.apache.lucene.search.vectorhighlight.FastVectorHighlighter;
 import org.apache.lucene.store.Directory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import io.quarkus.runtime.StartupEvent;
 
 @Path("/search")
 public class SearchResource {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(SearchResource.class);
 
     @Inject
     Directory dir;
@@ -79,6 +83,8 @@ public class SearchResource {
                             )
                     .build();
         }
+
+        LOGGER.info("Executing query: {}", queryString);
 
         try {
             Analyzer analyzer = new StandardAnalyzer();
