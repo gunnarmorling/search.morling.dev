@@ -6,6 +6,7 @@
 package dev.morling.search;
 
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.enterprise.event.Observes;
 import javax.inject.Inject;
@@ -45,7 +46,7 @@ import org.slf4j.LoggerFactory;
 
 import io.quarkus.runtime.StartupEvent;
 
-@Path("/search")
+@Path("/")
 public class SearchResource {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SearchResource.class);
@@ -56,6 +57,8 @@ public class SearchResource {
     private IndexSearcher searcher;
 
     private IndexReader indexReader;
+
+    private AtomicBoolean firstCall = new AtomicBoolean(true);
 
     public void setupSearcher(@Observes StartupEvent se) {
         try {
@@ -69,7 +72,15 @@ public class SearchResource {
 
     @GET
     @Produces(MediaType.APPLICATION_JSON)
+    @Path("/ping")
+    public String ping() {
+        return "{ \"isFirstCall\" : " + firstCall.getAndSet(false) + "}";
+    }
+
+    @GET
+    @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
+    @Path("/search")
     public Response search(@QueryParam("q") String queryString) {
         return query(queryString);
     }
