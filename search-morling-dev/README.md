@@ -1,30 +1,32 @@
-# quarkus-lucene project
+# search.morling.dev
 
-This project uses Quarkus, the Supersonic Subatomic Java Framework.
+This project contains the serverless search functionality of the blog at https://morling.dev.
+It is built using Quarkus and deployed to AWS Lambda.
 
-If you want to learn more about Quarkus, please visit its website: https://quarkus.io/ .
+## Building
 
-## Running the application in dev mode
-
-You can run your application in dev mode that enables live coding using:
 ```
-./mvnw quarkus:dev
+mvn clean package -Pnative -DskipTests=true -Dquarkus.native.additional-build-args=--report-unsupported-elements-at-runtime -Dquarkus.native.container-build=true
 ```
 
-## Packaging and running the application
+## Deploying
 
-The application can be packaged using `./mvnw package`.
-It produces the `quarkus-lucene-1.0.0-SNAPSHOT-runner.jar` file in the `/target` directory.
-Be aware that it’s not an _über-jar_ as the dependencies are copied into the `target/lib` directory.
+```
+sam package --template-file sam.native.yaml --output-template-file packaged.yaml --s3-bucket <S3 deployment bucket>
 
-The application is now runnable using `java -jar target/quarkus-lucene-1.0.0-SNAPSHOT-runner.jar`.
+sam deploy --template-file packaged.yaml --capabilities CAPABILITY_IAM --stack-name search-morling-dev
+```
 
-## Creating a native executable
+```
+aws apigateway update-stage \
+--rest-api-id <API ID> \
+--stage-name Prod \
+--patch-operations \
+'op=replace,path=/*/*/throttling/rateLimit,value=25'
 
-You can create a native executable using: `./mvnw package -Pnative`.
-
-Or, if you don't have GraalVM installed, you can run the native executable build in a container using: `./mvnw package -Pnative -Dquarkus.native.container-build=true`.
-
-You can then execute your native executable with: `./target/quarkus-lucene-1.0.0-SNAPSHOT-runner`
-
-If you want to learn more about building native executables, please consult https://quarkus.io/guides/building-native-image.
+aws apigateway update-stage \
+--rest-api-id <API ID> \
+--stage-name Prod \
+--patch-operations \
+'op=replace,path=/*/*/throttling/burstLimit,value=50'
+```
