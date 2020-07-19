@@ -25,6 +25,7 @@ import javax.ws.rs.core.Response.Status;
 
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
+import org.apache.lucene.analysis.en.EnglishAnalyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
@@ -103,7 +104,7 @@ public class SearchResource {
         LOGGER.info("Executing query: {}", queryString);
 
         try {
-            Analyzer analyzer = new StandardAnalyzer();
+            Analyzer analyzer = new EnglishAnalyzer();
 
             MultiFieldQueryParser parser = new MultiFieldQueryParser(
                     new String[]{"title", "content"},

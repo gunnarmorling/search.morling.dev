@@ -7,6 +7,8 @@ package dev.morling.quarkus.extensions.lucene.extension;
 
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttributeImpl;
+import org.apache.lucene.analysis.tokenattributes.KeywordAttribute;
+import org.apache.lucene.analysis.tokenattributes.KeywordAttributeImpl;
 import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
 import org.apache.lucene.analysis.tokenattributes.OffsetAttributeImpl;
 import org.apache.lucene.analysis.tokenattributes.PayloadAttribute;
@@ -60,6 +62,9 @@ public final class StaticImplementationAttributeFactorySubstitution {
         }
         else if (attClass == PositionLengthAttribute.class) {
             return new PositionLengthAttributeImpl();
+        }
+        else if (attClass == KeywordAttribute.class) {
+            return new KeywordAttributeImpl();
         }
 
         throw new UnsupportedOperationException("Unknown: " + attClass);

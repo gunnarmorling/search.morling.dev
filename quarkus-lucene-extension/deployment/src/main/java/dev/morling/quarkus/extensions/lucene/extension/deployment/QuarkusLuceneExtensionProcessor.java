@@ -21,6 +21,7 @@ import javax.json.JsonValue;
 import javax.json.JsonValue.ValueType;
 
 import org.apache.lucene.analysis.Analyzer;
+import org.apache.lucene.analysis.en.EnglishAnalyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
@@ -32,6 +33,7 @@ import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.IndexWriterConfig.OpenMode;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.SimpleFSDirectory;
+import org.graalvm.polyglot.Engine;
 
 import dev.morling.quarkus.extensions.lucene.extension.DirectoryProvider;
 import io.quarkus.arc.deployment.AdditionalBeanBuildItem;
@@ -76,7 +78,7 @@ class QuarkusLuceneExtensionProcessor {
     private Directory createIndexDirectory(Path root) throws Exception {
         Directory dir = new SimpleFSDirectory(root);
 
-      Analyzer analyzer = new StandardAnalyzer();
+      Analyzer analyzer = new EnglishAnalyzer();
       IndexWriterConfig iwc = new IndexWriterConfig(analyzer);
 
       iwc.setOpenMode(OpenMode.CREATE);
