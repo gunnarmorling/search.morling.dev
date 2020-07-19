@@ -7,6 +7,7 @@ package dev.morling.search;
 
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.regex.Pattern;
 
 import javax.enterprise.event.Observes;
 import javax.inject.Inject;
@@ -50,6 +51,10 @@ import io.quarkus.runtime.StartupEvent;
 public class SearchResource {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SearchResource.class);
+
+    private static final Pattern TRAILING_COLON = Pattern.compile(":\n\\s+");
+    private static final Pattern TRAILING_DOT = Pattern.compile("\\.\n\\s+");
+    private static final Pattern TRAILING_LINE_BREAK = Pattern.compile("\n\\s+");
 
     @Inject
     Directory dir;
@@ -131,12 +136,16 @@ public class SearchResource {
                     fragment = getBestFragmentFromSimpleHighlighter("content", topDocs.scoreDocs[i].doc, highlighter, analyzer);
                 }
                 if (fragment != null) {
+                    fragment = fragment.trim();
+
+                    fragment = TRAILING_COLON.matcher(fragment).replaceAll(". ");
+                    fragment = TRAILING_DOT.matcher(fragment).replaceAll(". ");
+                    fragment = TRAILING_LINE_BREAK.matcher(fragment).replaceAll(". ");
+
                     fragment = "..." + fragment;
                     if (!fragment.endsWith(".")) {
                         fragment = fragment + "...";
                     }
-                    fragment = fragment.replaceAll(":\n\\s+", ". ");
-                    fragment = fragment.replaceAll(".\n\\s+", ". ");
                 }
                 else {
                     fragment = "";

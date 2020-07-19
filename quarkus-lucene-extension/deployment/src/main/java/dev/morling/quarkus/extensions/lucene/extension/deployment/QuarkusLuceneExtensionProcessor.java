@@ -86,8 +86,12 @@ class QuarkusLuceneExtensionProcessor {
 
           JsonReader reader = Json.createReader(fis);
           for(JsonValue object : reader.readArray()){
-              Document doc = new Document();
               JsonObject jsonObject = object.asJsonObject();
+              if (jsonObject.getString("content").isEmpty()) {
+                  continue;
+              }
+
+              Document doc = new Document();
 
               FieldType ft = new FieldType();
               ft.setStored(true);
