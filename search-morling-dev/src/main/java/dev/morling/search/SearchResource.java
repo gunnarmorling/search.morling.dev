@@ -92,7 +92,7 @@ public class SearchResource {
     }
 
     private Response query(String queryString) {
-        if (queryString == null || queryString.isEmpty()) {
+        if (queryString == null || queryString.trim().isEmpty()) {
             return Response.status(Status.BAD_REQUEST)
                     .entity(Json.createObjectBuilder()
                             .add("message", "A query must be specified using the 'q' query parameter")
