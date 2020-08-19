@@ -3,10 +3,18 @@
 This project contains the serverless search functionality of the blog at https://morling.dev.
 It is built using Quarkus and deployed to AWS Lambda.
 
+## Index Update
+
+```
+wget -O src/main/resources/META-INF/searchindex.json  https://www.morling.dev/searchindex.json
+mvn clean package -DskipTests=true
+cp -r target/index src/main/zip.native
+```
+
 ## Building
 
 ```
-mvn clean package -Pnative -DskipTests=true -Dquarkus.native.additional-build-args=--report-unsupported-elements-at-runtime -Dquarkus.native.container-build=true
+mvn clean package -Pnative,lambda -DskipTests=true -Dquarkus.native.container-build=true
 ```
 
 ## Deploying
@@ -29,4 +37,30 @@ aws apigateway update-stage \
 --stage-name Prod \
 --patch-operations \
 'op=replace,path=/*/*/throttling/burstLimit,value=50'
+```
+
+## Deployment Alternatives
+
+### Google Cloud Run
+
+Preparations:
+
+```
+gcloud auth login
+gcloud config set project search-morling-dev
+gcloud auth configure-docker
+```
+
+Build:
+
+```
+mvn clean package -Pnative -DskipTests=true -Dquarkus.native.container-build=true
+docker build -f src/main/docker/Dockerfile.native -t gcr.io/search-morling-dev/search .
+```
+
+Deployment:
+
+```
+docker push gcr.io/search-morling-dev/search:latest
+gcloud run deploy --image gcr.io/search-morling-dev/search --platform managed
 ```
