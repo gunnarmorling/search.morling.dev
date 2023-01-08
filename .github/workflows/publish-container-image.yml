@@ -3,7 +3,7 @@ name: ci
 on:
   push:
     branches:
-      - 'main'
+      - 'master'
 
 jobs:
   docker:
@@ -43,7 +43,7 @@ jobs:
         name: Build and push
         uses: docker/build-push-action@v3
         with:
-          context: .
+          context: search-morling-dev
           push: true
           file: src/main/docker/Dockerfile.native
           tags: gunnarmorling/quarkus-on-render:latest
