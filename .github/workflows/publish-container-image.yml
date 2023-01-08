@@ -25,7 +25,7 @@ jobs:
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2
       - name: 'Build'
-        run: ./mvnw -B --file pom.xml verify -Pnative -Dquarkus.native.additional-build-args=-H:-UseContainerSupport
+        run: ./mvnw -B --file pom.xml verify -Pnative -DskipTests=true -Dquarkus.native.additional-build-args=-H:-UseContainerSupport
 
       -
         name: Set up QEMU
@@ -45,8 +45,8 @@ jobs:
         with:
           context: search-morling-dev
           push: true
-          file: src/main/docker/Dockerfile.native
-          tags: gunnarmorling/quarkus-on-render:latest
+          file: search-morling-dev/src/main/docker/Dockerfile.native
+          tags: gunnarmorling/search-morling-dev:latest
       - name: Deploy
         uses: fjogeleit/http-request-action@v1
         with:
