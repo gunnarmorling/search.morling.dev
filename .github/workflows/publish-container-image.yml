@@ -14,8 +14,8 @@ jobs:
 
       - uses: graalvm/setup-graalvm@v1
         with:
-          version: 'latest'
           java-version: '17'
+          version: '22.3.2' # Old 'version' option for the GraalVM version
           components: 'native-image'
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: 'Cache Maven packages'
